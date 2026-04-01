@@ -1,0 +1,13 @@
+.{
+    .name = .bucketboard,
+    .version = "0.0.1",
+    .minimum_zig_version = "0.16.0-dev.3039+b490412cd",
+    .paths = .{""},
+    .fingerprint = 0x4c79218a5fb97f49,
+    .dependencies = .{
+        .xet = .{
+            .url = "https://github.com/jedisct1/zig-xet/archive/main.tar.gz",
+            .hash = "xet-0.1.0-d6TQaocXAwC7Xm2eUErGa2eqBlKtAoLU2A1B2LXVThiO",
+        },
+    },
+}
