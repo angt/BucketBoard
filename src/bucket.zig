@@ -76,7 +76,7 @@ pub const Bucket = struct {
 
         const uri = try std.Uri.parse(url);
         var req = try http_client.request(.POST, uri, .{
-            .extra_headers = &[_]std.http.Header{
+            .extra_headers = &.{
                 .{ .name = "Authorization", .value = auth_header },
                 .{ .name = "Content-Type", .value = "application/json" },
             },
@@ -122,7 +122,7 @@ pub const Bucket = struct {
 
         const uri = try std.Uri.parse(url);
         var req = try http_client.request(.GET, uri, .{
-            .extra_headers = &[_]std.http.Header{
+            .extra_headers = &.{
                 .{ .name = "Authorization", .value = auth_header },
             },
         });
@@ -183,7 +183,7 @@ pub const Bucket = struct {
 
         const uri = try std.Uri.parse(url);
         var req = try http_client.request(.HEAD, uri, .{
-            .extra_headers = &[_]std.http.Header{
+            .extra_headers = &.{
                 .{ .name = "Authorization", .value = auth_header },
             },
         });
@@ -332,7 +332,7 @@ pub const Bucket = struct {
 
         const uri = try std.Uri.parse(url);
         var req = try http_client.request(.POST, uri, .{
-            .extra_headers = &[_]std.http.Header{
+            .extra_headers = &.{
                 .{ .name = "Authorization", .value = auth_header },
                 .{ .name = "Content-Type", .value = "application/x-ndjson" },
             },
