@@ -1,5 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
+const Aegis128X2 = std.crypto.aead.aegis.Aegis128X2;
 
 const xet = @import("xet");
 const cas_client = xet.cas_client;
@@ -28,9 +29,14 @@ pub fn main(init: std.process.Init) !void {
     const bucket = environ_map.get("BKT") orelse
         fatal("BKT not set", .{});
 
+    const secret = if (environ_map.get("BKT_SECRET")) |secret_hex|
+        parseSecretKey(secret_hex)
+    else
+        null;
+
     switch (command) {
-        .set => try sendBucket(gpa, &io, token, bucket),
-        .get => try recvBucket(gpa, &io, token, bucket),
+        .set => try sendBucket(gpa, &io, token, bucket, secret),
+        .get => try recvBucket(gpa, &io, token, bucket, secret),
     }
 }
 
@@ -39,9 +45,54 @@ fn fatal(comptime msg: []const u8, args: anytype) noreturn {
     std.process.exit(1);
 }
 
-fn sendBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []const u8) !void {
+fn parseSecretKey(secret_hex: []const u8) [Aegis128X2.key_length]u8 {
+    if (secret_hex.len != Aegis128X2.key_length * 2) {
+        fatal("BKT_SECRET must be exactly {d} hex characters", .{Aegis128X2.key_length * 2});
+    }
+
+    var key: [Aegis128X2.key_length]u8 = undefined;
+    _ = std.fmt.hexToBytes(&key, secret_hex) catch {
+        fatal("BKT_SECRET must be valid hex", .{});
+    };
+    return key;
+}
+
+fn encryptData(gpa: std.mem.Allocator, io: *Io, data: []u8, key: [Aegis128X2.key_length]u8) ![]u8 {
+    const plaintext_len = data.len;
+    const total_len = Aegis128X2.nonce_length + plaintext_len + Aegis128X2.tag_length;
+    const output = try gpa.realloc(data, total_len);
+
+    std.mem.copyBackwards(u8, output[Aegis128X2.nonce_length .. Aegis128X2.nonce_length + plaintext_len], output[0..plaintext_len]);
+
+    const nonce = output[0..Aegis128X2.nonce_length];
+    io.random(nonce);
+
+    const ciphertext = output[Aegis128X2.nonce_length .. Aegis128X2.nonce_length + plaintext_len];
+    const tag: *[Aegis128X2.tag_length]u8 = output[Aegis128X2.nonce_length + plaintext_len ..][0..Aegis128X2.tag_length];
+    Aegis128X2.encrypt(ciphertext, tag, ciphertext, "", nonce[0..nonce.len].*, key);
+
+    return output;
+}
+
+fn decryptData(data: []u8, key: [Aegis128X2.key_length]u8) ![]u8 {
+    const min_len = Aegis128X2.nonce_length + Aegis128X2.tag_length;
+    if (data.len < min_len) {
+        return error.InvalidCiphertext;
+    }
+
+    const nonce = data[0..Aegis128X2.nonce_length];
+
+    const sealed = data[Aegis128X2.nonce_length..];
+    const ciphertext = sealed[0 .. sealed.len - Aegis128X2.tag_length];
+    const tag = sealed[sealed.len - Aegis128X2.tag_length ..][0..Aegis128X2.tag_length];
+
+    try Aegis128X2.decrypt(ciphertext, ciphertext, tag.*, "", nonce[0..nonce.len].*, key);
+    return ciphertext;
+}
+
+fn sendBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []const u8, secret: ?[Aegis128X2.key_length]u8) !void {
     var reader = Io.File.stdin().readerStreaming(io.*, &.{});
-    const data = try reader.interface.allocRemaining(gpa, .unlimited);
+    var data = try reader.interface.allocRemaining(gpa, .unlimited);
     defer gpa.free(data);
 
     if (data.len == 0) {
@@ -55,7 +106,12 @@ fn sendBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []cons
     var cas = try cas_client.CasClient.init(gpa, io.*, xet_conn.cas_url, xet_conn.access_token);
     defer cas.deinit();
 
-    const result = upload.uploadData(gpa, &cas, data) catch |err| {
+    const payload = if (secret) |key| blk: {
+        data = try encryptData(gpa, io, data, key);
+        break :blk data;
+    } else data;
+
+    const result = upload.uploadData(gpa, &cas, payload) catch |err| {
         fatal("upload failed: {}", .{err});
     };
 
@@ -64,7 +120,7 @@ fn sendBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []cons
     };
 }
 
-fn recvBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []const u8) !void {
+fn recvBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []const u8, secret: ?[Aegis128X2.key_length]u8) !void {
     var metadata = bucket_api.getFileMetadata(gpa, io.*, bucket, token, "bkt") catch |err| {
         if (err == bucket_api.BucketError.NotFound) {
             fatal("no data found", .{});
@@ -87,8 +143,15 @@ fn recvBucket(gpa: std.mem.Allocator, io: *Io, token: []const u8, bucket: []cons
     };
     defer gpa.free(data);
 
+    const payload = if (secret) |key|
+        decryptData(data, key) catch |err| switch (err) {
+            error.AuthenticationFailed, error.InvalidCiphertext => fatal("decrypt failed", .{}),
+        }
+    else
+        data;
+
     var buf: [4096]u8 = undefined;
     var writer = Io.File.stdout().writer(io.*, &buf);
-    try writer.interface.writeAll(data);
+    try writer.interface.writeAll(payload);
     try writer.flush();
 }
