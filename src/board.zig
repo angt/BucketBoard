@@ -49,7 +49,7 @@ fn setClipboard(bkt: *bucket.Bucket) !void {
     if (data.len == 0) {
         fatal("no data on stdin", .{});
     }
-    bkt.upload("bkt", data) catch |err| {
+    bkt.uploadData("bkt", data) catch |err| {
         fatal("upload failed: {}", .{err});
     };
 }
