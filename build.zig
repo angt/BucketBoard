@@ -9,27 +9,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const bucket_mod = b.createModule(.{
-        .root_source_file = b.path("src/bucket.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "xet", .module = xet_dep.module("xet") },
-        },
-    });
-
-    const root_module = b.createModule(.{
-        .root_source_file = b.path("src/board.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "bucket", .module = bucket_mod },
-        },
-    });
-
     const exe = b.addExecutable(.{
         .name = "bkt",
-        .root_module = root_module,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "xet", .module = xet_dep.module("xet") },
+            },
+        }),
     });
 
     b.installArtifact(exe);
