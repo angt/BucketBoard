@@ -1,13 +1,13 @@
 .{
     .name = .bucketboard,
     .version = "0.0.1",
-    .minimum_zig_version = "0.16.0-dev.3039+b490412cd",
+    .minimum_zig_version = "0.16.0",
     .paths = .{""},
     .fingerprint = 0x4c79218a5fb97f49,
     .dependencies = .{
         .xet = .{
-            .url = "https://github.com/jedisct1/zig-xet/archive/refs/tags/0.2.1.tar.gz",
-            .hash = "xet-0.2.1-d6TQaupNAwD9JqrA2jYXoeNKv_A0kniH8eGZW6PKofXN",
+            .url = "https://github.com/jedisct1/zig-xet/archive/refs/tags/0.2.2.tar.gz",
+            .hash = "xet-0.2.2-d6TQarROAwAylO_4HBhLg3s_Z4eiYV5lirXqVnw2sWhb",
         },
     },
 }
