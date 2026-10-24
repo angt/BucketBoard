@@ -6,7 +6,7 @@ XET powered copypasta network
 
 ### Prerequisites
 
-- [Zig](https://ziglang.org/) 0.16 or newer
+- [Zig](https://ziglang.org/) 0.17
 - A [HuggingFace](https://huggingface.co/) account with a token
 
 ### Install
