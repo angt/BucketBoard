@@ -22,7 +22,8 @@ Make sure `~/.local/bin` is in your `PATH`:
     $ export BKT_TOKEN=hf_xxxxxxxxxx
     $ export BKT=username/bucket
 
-To enable end-to-end encryption, also set `BKT_SECRET` to a 16-byte key encoded as 32 hex characters:
+To enable end-to-end encryption, also set `BKT_SECRET` to a 16-byte key
+encoded as 32 hex characters:
 
     $ export BKT_SECRET=00112233445566778899aabbccddeeff
 
@@ -30,7 +31,13 @@ Generate one with OpenSSL if needed:
 
     $ openssl rand -hex 16
 
-When `BKT_SECRET` is set, uploads are encrypted with AEGIS-128X2 using a random nonce prepended to the ciphertext, and downloads are decrypted automatically.
+When `BKT_SECRET` is set, uploads are encrypted with AEGIS-128X2 using a
+random nonce prepended to the ciphertext, and downloads are decrypted
+automatically. The payload stored in the bucket is `nonce || ciphertext
+|| tag`.
+
+Note that `BKT_SECRET` is not stored or sent anywhere: if you lose it,
+previously uploaded data cannot be recovered.
 
 ## Usage
 
@@ -42,3 +49,7 @@ When `BKT_SECRET` is set, uploads are encrypted with AEGIS-128X2 using a random 
 
     $ bkt
     hello
+
+## Development
+
+    $ zig build test
